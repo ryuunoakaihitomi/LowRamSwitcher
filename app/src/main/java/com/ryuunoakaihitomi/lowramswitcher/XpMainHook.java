@@ -55,6 +55,10 @@ public class XpMainHook implements IXposedHookZygoteInit, IXposedHookLoadPackage
         //@hide,-> system,add condition:IS_DEBUGGABLE DEVELOPMENT_FORCE_LOW_RAM
         findAndHookMethod(amClazz, "isLowRamDeviceStatic", SOLUTION_RETURN);
         //v4-support library(unnecessary hook in kitkat or +)
-        findAndHookMethod(findClass("android.support.v4.app.ActivityManagerCompat", lpparam.classLoader), LOW_RAM_SHOWED_API_METHOD_NAME, ActivityManager.class, SOLUTION_RETURN);
+        try {
+            findAndHookMethod(findClass("android.support.v4.app.ActivityManagerCompat", lpparam.classLoader), LOW_RAM_SHOWED_API_METHOD_NAME, ActivityManager.class, SOLUTION_RETURN);
+        } catch (Throwable t) { //may throw ClassNotFoundException
+            System.out.println(lpparam.packageName + ":android.support.v4.app.ActivityManagerCompat.isLowRamDevice() not found!");
+        }
     }
 }
