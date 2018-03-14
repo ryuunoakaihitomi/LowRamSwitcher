@@ -1,5 +1,7 @@
 package com.ryuunoakaihitomi.lowramswitcher;
 
+import android.app.ActivityManager;
+
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.IXposedHookZygoteInit;
 import de.robv.android.xposed.XC_MethodHook;
@@ -48,9 +50,11 @@ public class XpMainHook implements IXposedHookZygoteInit, IXposedHookLoadPackage
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
         hookAllMethods(findClass("java.lang.System", lpparam.classLoader), "getProperty", SOLUTION_FILTER);
         Class<?> amClazz = findClass("android.app.ActivityManager", lpparam.classLoader);
-        findAndHookMethod(amClazz, "isLowRamDevice", SOLUTION_RETURN);
+        final String LOW_RAM_SHOWED_API_METHOD_NAME = "isLowRamDevice";
+        findAndHookMethod(amClazz, LOW_RAM_SHOWED_API_METHOD_NAME, SOLUTION_RETURN);
         //@hide,-> system,add condition:IS_DEBUGGABLE DEVELOPMENT_FORCE_LOW_RAM
         findAndHookMethod(amClazz, "isLowRamDeviceStatic", SOLUTION_RETURN);
-        //I don't wanna hook v4-support library because of laziness,bye.
+        //v4-support library(unnecessary hook in kitkat or +)
+        findAndHookMethod(findClass("android.support.v4.app.ActivityManagerCompat", lpparam.classLoader), LOW_RAM_SHOWED_API_METHOD_NAME, ActivityManager.class, SOLUTION_RETURN);
     }
 }
