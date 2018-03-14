@@ -12,6 +12,7 @@ import static de.robv.android.xposed.XposedBridge.hookAllMethods;
 import static de.robv.android.xposed.XposedHelpers.findAndHookMethod;
 import static de.robv.android.xposed.XposedHelpers.findClass;
 
+
 /**
  * Xposed Main Hook
  * Created by ZQY on 2018/3/13.
@@ -24,11 +25,11 @@ public class XpMainHook implements IXposedHookZygoteInit, IXposedHookLoadPackage
     //real value of getprop ro.config.low_ram
     private boolean isLowRAM;
     //arg:str key,(str def)
-    private final XC_MethodHook SOLUTION_FILTER = new XC_MethodHook() {
+    private final XC_MethodHook SOLUTION_FILTER_STRING_RET = new XC_MethodHook() {
         @Override
         protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
             if (LOW_RAM_TAG.equals(param.args[0]))
-                param.setResult(!isLowRAM);
+                param.setResult(String.valueOf(!isLowRAM));
         }
     };
     //arg:null,only reverse
@@ -40,15 +41,21 @@ public class XpMainHook implements IXposedHookZygoteInit, IXposedHookLoadPackage
         isLowRAM = Boolean.valueOf(System.getProperty(LOW_RAM_TAG));
         //-> system
         Class<?> spClazz = findClass("android.os.SystemProperties", null);
-        findAndHookMethod(spClazz, "getBoolean", String.class, boolean.class, SOLUTION_FILTER);
+        findAndHookMethod(spClazz, "getBoolean", String.class, boolean.class, new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                if (LOW_RAM_TAG.equals(param.args[0]))
+                    param.setResult(!isLowRAM);
+            }
+        });
         //for Android 4.4
-        findAndHookMethod(spClazz, "get", String.class, String.class, SOLUTION_FILTER);
+        hookAllMethods(spClazz, "get", SOLUTION_FILTER_STRING_RET);
     }
 
     //->app
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
-        hookAllMethods(findClass("java.lang.System", lpparam.classLoader), "getProperty", SOLUTION_FILTER);
+        hookAllMethods(findClass("java.lang.System", lpparam.classLoader), "getProperty", SOLUTION_FILTER_STRING_RET);
         Class<?> amClazz = findClass("android.app.ActivityManager", lpparam.classLoader);
         final String LOW_RAM_SHOWED_API_METHOD_NAME = "isLowRamDevice";
         findAndHookMethod(amClazz, LOW_RAM_SHOWED_API_METHOD_NAME, SOLUTION_RETURN);
