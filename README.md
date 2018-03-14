@@ -1,8 +1,9 @@
 # LowRamSwitcher
-- Equivalent to 
-> ro.config.low_ram=true
+- Equivalent to reversing the value of
+> ro.config.low_ram
 
 in build.prop
+## If low_ram avaliable...
 - Android 4.4(+)
 
 Save **more** RAM
