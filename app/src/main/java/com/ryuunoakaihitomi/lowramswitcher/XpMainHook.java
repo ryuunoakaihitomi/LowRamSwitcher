@@ -22,14 +22,23 @@ public class XpMainHook implements IXposedHookZygoteInit, IXposedHookLoadPackage
 
     //buid.prop config
     private final String LOW_RAM_TAG = "ro.config.low_ram";
+    private final String SYSTEM_PROPERTIES_CLASS_NAME = "android.os.SystemProperties";
     //real value of getprop ro.config.low_ram
     private boolean isLowRAM;
-    //arg:str key,(str def)
+    //arg:str key,(str def);ret:str
     private final XC_MethodHook SOLUTION_FILTER_STRING_RET = new XC_MethodHook() {
         @Override
         protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
             if (LOW_RAM_TAG.equals(param.args[0]))
                 param.setResult(String.valueOf(!isLowRAM));
+        }
+    };
+    //arg:str key,(bol def);ret:bol
+    private final XC_MethodHook SOLUTION_FILTER_BOOL_RET = new XC_MethodHook() {
+        @Override
+        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+            if (LOW_RAM_TAG.equals(param.args[0]))
+                param.setResult(!isLowRAM);
         }
     };
     //arg:null,only reverse
@@ -40,14 +49,8 @@ public class XpMainHook implements IXposedHookZygoteInit, IXposedHookLoadPackage
         //init the real value
         isLowRAM = Boolean.valueOf(System.getProperty(LOW_RAM_TAG));
         //-> system
-        Class<?> spClazz = findClass("android.os.SystemProperties", null);
-        findAndHookMethod(spClazz, "getBoolean", String.class, boolean.class, new XC_MethodHook() {
-            @Override
-            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                if (LOW_RAM_TAG.equals(param.args[0]))
-                    param.setResult(!isLowRAM);
-            }
-        });
+        Class<?> spClazz = findClass(SYSTEM_PROPERTIES_CLASS_NAME, null);
+        findAndHookMethod(spClazz, "getBoolean", String.class, boolean.class, SOLUTION_FILTER_BOOL_RET);
         //for Android 4.4
         hookAllMethods(spClazz, "get", SOLUTION_FILTER_STRING_RET);
     }
@@ -55,11 +58,15 @@ public class XpMainHook implements IXposedHookZygoteInit, IXposedHookLoadPackage
     //->app
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
-        hookAllMethods(findClass("java.lang.System", lpparam.classLoader), "getProperty", SOLUTION_FILTER_STRING_RET);
+        //@hide,-> app(inflection) | system
+        Class<?> spClazz = findClass(SYSTEM_PROPERTIES_CLASS_NAME, lpparam.classLoader);
+        hookAllMethods(spClazz, "get", SOLUTION_FILTER_STRING_RET);
+        hookAllMethods(spClazz, "getBoolean", SOLUTION_FILTER_BOOL_RET);
+        //-> app
         Class<?> amClazz = findClass("android.app.ActivityManager", lpparam.classLoader);
         final String LOW_RAM_SHOWED_API_METHOD_NAME = "isLowRamDevice";
         findAndHookMethod(amClazz, LOW_RAM_SHOWED_API_METHOD_NAME, SOLUTION_RETURN);
-        //@hide,-> system,add condition:IS_DEBUGGABLE DEVELOPMENT_FORCE_LOW_RAM
+        //@hide,-> app(inflection) | system;add condition:IS_DEBUGGABLE DEVELOPMENT_FORCE_LOW_RAM
         findAndHookMethod(amClazz, "isLowRamDeviceStatic", SOLUTION_RETURN);
         //v4-support library(unnecessary hook in kitkat or +)
         try {
