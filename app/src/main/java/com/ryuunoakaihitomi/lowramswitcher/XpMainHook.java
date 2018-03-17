@@ -1,6 +1,5 @@
 package com.ryuunoakaihitomi.lowramswitcher;
 
-import android.annotation.SuppressLint;
 import android.app.ActivityManager;
 
 import java.lang.reflect.Method;
@@ -48,19 +47,16 @@ public class XpMainHook implements IXposedHookZygoteInit, IXposedHookLoadPackage
 
     @Override
     public void initZygote(final StartupParam startupParam) throws Throwable {
-        final String SYSTEM_PROPERTIES_CLASS_NAME = "android.os.SystemProperties";
+        Class<?> spClazz = findClass("android.os.SystemProperties", null);
         //init the real value
         try {
-            @SuppressLint("PrivateApi") Class<?> clazz = Class.forName(SYSTEM_PROPERTIES_CLASS_NAME);
-            Method method = clazz.getMethod("get", String.class);
+            Method method = spClazz.getMethod("get", String.class);
             isLowRAM = "true".equals(method.invoke(null, "ro.config.low_ram"));
         } catch (Exception ignored) {
         }
-        //-> system
-        Class<?> spClazz = findClass(SYSTEM_PROPERTIES_CLASS_NAME, null);
-        //@hide,-> app(inflection) | system
+        //@hide
         hookAllMethods(spClazz, "getBoolean", SOLUTION_FILTER_BOOL_RET);
-        //for Android 7.0 or lower
+        //@hide,for Android 7.0 or lower
         hookAllMethods(spClazz, "get", SOLUTION_FILTER_STRING_RET);
     }
 
@@ -71,7 +67,7 @@ public class XpMainHook implements IXposedHookZygoteInit, IXposedHookLoadPackage
         Class<?> amClazz = findClass("android.app.ActivityManager", lpparam.classLoader);
         final String LOW_RAM_SHOWED_API_METHOD_NAME = "isLowRamDevice";
         findAndHookMethod(amClazz, LOW_RAM_SHOWED_API_METHOD_NAME, SOLUTION_RETURN);
-        //@hide,-> app(inflection) | system;add condition:IS_DEBUGGABLE DEVELOPMENT_FORCE_LOW_RAM
+        //@hide;add condition:IS_DEBUGGABLE DEVELOPMENT_FORCE_LOW_RAM
         findAndHookMethod(amClazz, "isLowRamDeviceStatic", SOLUTION_RETURN);
         //v4-support library(unnecessary hook in kitkat or +)
         try {
