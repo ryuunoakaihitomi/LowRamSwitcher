@@ -1,6 +1,9 @@
 package com.ryuunoakaihitomi.lowramswitcher;
 
+import android.annotation.SuppressLint;
 import android.app.ActivityManager;
+
+import java.lang.reflect.Method;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.IXposedHookZygoteInit;
@@ -45,10 +48,16 @@ public class XpMainHook implements IXposedHookZygoteInit, IXposedHookLoadPackage
 
     @Override
     public void initZygote(final StartupParam startupParam) throws Throwable {
+        final String SYSTEM_PROPERTIES_CLASS_NAME = "android.os.SystemProperties";
         //init the real value
-        isLowRAM = Boolean.valueOf(System.getProperty(LOW_RAM_TAG));
+        try {
+            @SuppressLint("PrivateApi") Class<?> clazz = Class.forName(SYSTEM_PROPERTIES_CLASS_NAME);
+            Method method = clazz.getMethod("get", String.class);
+            isLowRAM = "true".equals(method.invoke(null, "ro.config.low_ram"));
+        } catch (Exception ignored) {
+        }
         //-> system
-        Class<?> spClazz = findClass("android.os.SystemProperties", null);
+        Class<?> spClazz = findClass(SYSTEM_PROPERTIES_CLASS_NAME, null);
         //@hide,-> app(inflection) | system
         hookAllMethods(spClazz, "getBoolean", SOLUTION_FILTER_BOOL_RET);
         //for Android 7.0 or lower
