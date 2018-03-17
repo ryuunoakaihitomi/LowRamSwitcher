@@ -22,7 +22,6 @@ public class XpMainHook implements IXposedHookZygoteInit, IXposedHookLoadPackage
 
     //buid.prop config
     private final String LOW_RAM_TAG = "ro.config.low_ram";
-    private final String SYSTEM_PROPERTIES_CLASS_NAME = "android.os.SystemProperties";
     //real value of getprop ro.config.low_ram
     private boolean isLowRAM;
     //arg:str key,(str def);ret:str
@@ -41,7 +40,7 @@ public class XpMainHook implements IXposedHookZygoteInit, IXposedHookLoadPackage
                 param.setResult(!isLowRAM);
         }
     };
-    //arg:null,only reverse
+    //arg:null,ret:bol
     private final XC_MethodReplacement SOLUTION_RETURN = XC_MethodReplacement.returnConstant(!isLowRAM);
 
     @Override
@@ -49,19 +48,16 @@ public class XpMainHook implements IXposedHookZygoteInit, IXposedHookLoadPackage
         //init the real value
         isLowRAM = Boolean.valueOf(System.getProperty(LOW_RAM_TAG));
         //-> system
-        Class<?> spClazz = findClass(SYSTEM_PROPERTIES_CLASS_NAME, null);
-        findAndHookMethod(spClazz, "getBoolean", String.class, boolean.class, SOLUTION_FILTER_BOOL_RET);
-        //for Android 4.4
+        Class<?> spClazz = findClass("android.os.SystemProperties", null);
+        //@hide,-> app(inflection) | system
+        hookAllMethods(spClazz, "getBoolean", SOLUTION_FILTER_BOOL_RET);
+        //for Android 7.0 or lower
         hookAllMethods(spClazz, "get", SOLUTION_FILTER_STRING_RET);
     }
 
     //->app
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
-        //@hide,-> app(inflection) | system
-        Class<?> spClazz = findClass(SYSTEM_PROPERTIES_CLASS_NAME, lpparam.classLoader);
-        hookAllMethods(spClazz, "get", SOLUTION_FILTER_STRING_RET);
-        hookAllMethods(spClazz, "getBoolean", SOLUTION_FILTER_BOOL_RET);
         //-> app
         Class<?> amClazz = findClass("android.app.ActivityManager", lpparam.classLoader);
         final String LOW_RAM_SHOWED_API_METHOD_NAME = "isLowRamDevice";
